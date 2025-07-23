@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 5px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            color: white;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 15px;
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .file-input-label:hover {
+            background: #e3f2fd;
+            border-color: #5a67d8;
+        }
+
+        .file-preview {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .file-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .controls-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            flex: 1;
+        }
+
+        .filter-select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #e1e5e9;
+            background: white;
+            min-width: 150px;
+        }
+
+        .group-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .backup-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            width: auto;
+            margin: 0;
+            background: #28a745;
+            white-space: nowrap;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+        }
+
+        .expenses-list {
+            margin-top: 20px;
+        }
+
+        .expense-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .expense-card.selected {
+            border-left-color: #28a745;
+            background: #e8f5e8;
+            transform: translateX(5px);
+        }
+
+        .expense-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .expense-checkbox {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .expense-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-right: 40px;
+        }
+
+        .expense-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .expense-amount {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #667eea;
+        }
+
+        .expense-status {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-toggle {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .status-paid {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .status-unpaid {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f1b0b7;
+        }
+
+        .expense-details {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .expense-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .receipt-thumbnail {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid #e1e5e9;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .modal-content img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .total-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .total-summary h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .total-summary .amount {
+            font-size: 2.5rem;
+            font-weight: 800;
+        }
+
+        .summary-details {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+
+        .firebase-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .firebase-status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .firebase-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f1b0b7;
+        }
+
+        .firebase-status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+
+        .auth-section {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .auth-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .auth-section p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .auth-form {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .auth-input {
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            min-width: 200px;
+        }
+
+        .user-info {
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .sync-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .firebase-status {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+
+            .auth-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .auth-input {
+                min-width: auto;
+                width: 100%;
+            }
+
+            .user-info {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tab-content {
+                padding: 20px;
+            }
+
+            .tab {
+                font-size: 0.8rem;
+                padding: 12px 8px;
+            }
+
+            .controls-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-controls, .group-controls, .backup-controls {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .expense-header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding-right: 20px;
+            }
+
+            .expense-actions {
+                flex-direction: column;
+            }
+
+            .btn-small {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+
+            .expense-checkbox {
+                top: 15px;
+                right: 15px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .selection-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .selection-info.show {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Firebase Status Indicator -->
+        <div id="firebase-status" class="firebase-status loading">🔄 Connecting to Firebase...</div>
+
+        <div class="header">
+            <h1>💼 Expense Tracker</h1>
+            <p>Track your company purchases with ease</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('add-expense')">📝 Add</div>
+            <div class="tab" onclick="showTab('view-expenses')">📊 View</div>
+            <div class="tab" onclick="showTab('backup-restore')">💾 Backup</div>
+        </div>
+
+        <!-- Add Expense Tab -->
+        <div id="add-expense" class="tab-content active">
+            <!-- Authentication Section -->
+            <div id="auth-section" class="auth-section" style="display: none;">
+                <h3>🔐 Sign In to Sync Your Data</h3>
+                <p>Sign in to save your expenses to the cloud and access them from any device</p>
+                <div class="auth-form">
+                    <input type="email" id="auth-email" class="auth-input" placeholder="Email address" required>
+                    <input type="password" id="auth-password" class="auth-input" placeholder="Password" required>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button id="sign-in-btn" class="btn btn-small">🔑 Sign In</button>
+                    <button id="sign-up-btn" class="btn btn-small btn-secondary">📝 Sign Up</button>
+                </div>
+            </div>
+
+            <!-- User Info Section -->
+            <div id="user-info" class="user-info" style="display: none;">
+                <div>
+                    <strong>👤 Signed in as:</strong> <span id="user-email"></span>
+                </div>
+                <button id="sign-out-btn" class="btn btn-small btn-secondary">🚪 Sign Out</button>
+            </div>
+
+            <!-- Sync Controls -->
+            <div id="sync-controls" class="sync-controls" style="display: none;">
+                <button id="force-sync-btn" class="btn btn-small">🔄 Sync Now</button>
+                <button id="offline-mode-btn" class="btn btn-small btn-warning">📱 Work Offline</button>
+            </div>
+
+            <h2 style="margin-bottom: 25px; color: #333;">➕ Add New Expense</h2>
+            <form id="expense-form">
+                <div class="form-group">
+                    <label for="item">Item/Purchase Description</label>
+                    <input type="text" id="item" name="item" required placeholder="e.g., Shower mixer, Office supplies">
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">Reason for Purchase</label>
+                    <textarea id="reason" name="reason" required placeholder="Explain why this purchase was necessary..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="property">Property Address</label>
+                    <select id="property" name="property" required>
+                        <option value="">Select property...</option>
+                        <option value="5 Bedford Park, Croydon, CR02GT">5 Bedford Park, Croydon, CR02GT</option>
+                        <option value="40 Westway, Caterham on the Hill, Surrey, CR3 5TP">40 Westway, Caterham on the Hill, Surrey, CR3 5TP</option>
+                        <option value="46 Westway, Caterham on the Hill, Surrey, CR3 5TP">46 Westway, Caterham on the Hill, Surrey, CR3 5TP</option>
+                        <option value="73 - 75 Lewisham High Street, London, SE13 5JX">73 - 75 Lewisham High Street, London, SE13 5JX</option>
+                        <option value="77 Lewisham High Street, London, SE13 5JX">77 Lewisham High Street, London, SE13 5JX</option>
+                        <option value="Seltek House, 36-40 Westway, Caterham, Surrey, CR3 5FY">Seltek House, 36-40 Westway, Caterham, Surrey, CR3 5FY</option>
+                        <option value="70-72 Croydon Road, Caterham, Surrey, CR3 6QD">70-72 Croydon Road, Caterham, Surrey, CR3 6QD</option>
+                        <option value="63 Glenfarg Road, London SE6 1XN">63 Glenfarg Road, London SE6 1XN</option>
+                        <option value="97 Silvermere Road SE6 4QU">97 Silvermere Road SE6 4QU</option>
+                        <option value="78 Sandhurst Road, London SE6 1XE">78 Sandhurst Road, London SE6 1XE</option>
+                        <option value="29 Eastdown Park Road, London SE13 5HU">29 Eastdown Park Road, London SE13 5HU</option>
+                        <option value="25 Greenock Road, London SW16 5XG">25 Greenock Road, London SW16 5XG</option>
+                        <option value="45 West Street, London, BR1 1RE">45 West Street, London, BR1 1RE</option>
+                        <option value="58-60 High Street, Lewisham, London SE13 5JH">58-60 High Street, Lewisham, London SE13 5JH</option>
+                        <option value="All properties">All properties</option>
+                        <option value="Office expense">Office expense</option>
+                        <option value="Other">Other (specify below)</option>
+                    </select>
+                    <input type="text" id="property-other" name="property-other" placeholder="Specify other property..." style="display: none; margin-top: 10px;">
+                </div>
+
+                <div class="form-group">
+                    <label for="date">Date of Purchase</label>
+                    <input type="date" id="date" name="date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="receipt">Receipt Image</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="receipt" name="receipt" class="file-input" accept="image/*" capture="environment">
+                        <label for="receipt" class="file-input-label">
+                            📸 Tap to upload receipt photo
+                        </label>
+                    </div>
+                    <div id="receipt-preview" class="file-preview"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="total">Total Amount (£)</label>
+                    <input type="number" id="total" name="total" step="0.01" min="0" required placeholder="0.00">
+                </div>
+
+                <button type="submit" class="btn">💾 Save Expense</button>
+            </form>
+        </div>
+
+        <!-- View Expenses Tab -->
+        <div id="view-expenses" class="tab-content">
+            <h2 style="margin-bottom: 25px; color: #333;">📋 Your Expenses</h2>
+            
+            <div id="total-summary" class="total-summary">
+                <h3>Total Expenses</h3>
+                <div class="amount">£0.00</div>
+                <div class="summary-details">
+                    <div>💰 Paid: <span id="paid-total">£0.00</span></div>
+                    <div>⏳ Unpaid: <span id="unpaid-total">£0.00</span></div>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <div class="filter-controls">
+                    <label style="margin: 0; font-size: 0.9rem;">Filter by:</label>
+                    <select id="filter-property" class="filter-select">
+                        <option value="">All Properties</option>
+                    </select>
+                    <select id="filter-status" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="paid">Paid</option>
+                        <option value="unpaid">Unpaid</option>
+                    </select>
+                    <select id="sort-by" class="filter-select">
+                        <option value="date-desc">Date (Newest)</option>
+                        <option value="date-asc">Date (Oldest)</option>
+                        <option value="amount-desc">Amount (High-Low)</option>
+                        <option value="amount-asc">Amount (Low-High)</option>
+                        <option value="item">Item A-Z</option>
+                    </select>
+                </div>
+                
+                <div class="group-controls">
+                    <button id="select-all-btn" class="btn btn-small btn-secondary">Select All</button>
+                    <button id="clear-selection-btn" class="btn btn-small btn-secondary">Clear</button>
+                </div>
+            </div>
+
+            <div id="selection-info" class="selection-info">
+                <span id="selection-count">0 expenses selected</span>
+                <button id="export-group-btn" class="btn btn-small">📄 Export Group PDF</button>
+            </div>
+
+            <div id="expenses-container">
+                <div class="empty-state">
+                    <h3>No expenses yet</h3>
+                    <p>Add your first expense using the form above!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup & Restore Tab -->
+        <div id="backup-restore" class="tab-content">
+            <h2 style="margin-bottom: 25px; color: #333;">💾 Backup & Restore</h2>
+            
+            <div style="margin-bottom: 40px;">
+                <h3 style="margin-bottom: 15px; color: #333;">📤 Backup Your Data</h3>
+                <p style="color: #666; margin-bottom: 20px;">Download a backup file containing all your expenses. This will save your data so you can restore it later.</p>
+                <button id="backup-btn" class="btn">📥 Download Backup</button>
+            </div>
+
+            <div>
+                <h3 style="margin-bottom: 15px; color: #333;">📥 Restore Your Data</h3>
+                <p style="color: #666; margin-bottom: 20px;">Upload a previously saved backup file to restore your expenses. This will replace your current data.</p>
+                <input type="file" id="restore-input" class="hidden-file-input" accept=".json">
+                <button id="restore-btn" class="btn btn-warning">🔄 Choose Backup File</button>
+                <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <strong>⚠️ Warning:</strong> Restoring will replace all your current expenses with the data from the backup file.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for receipt images -->
+    <div id="receipt-modal" class="modal">
+        <span class="close">&times;</span>
+        <div class="modal-content">
+            <img id="modal-image" src="" alt="Receipt">
+        </div>
+    </div>
+
+    <script>
+        // ========== FIREBASE CONFIGURATION ==========
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCC1amCkQqG7CKfDlVEzMcBZI4Bx1NWOO0",
+            authDomain: "my-expense-tracker-606a9.firebaseapp.com",
+            projectId: "my-expense-tracker-606a9",
+            storageBucket: "my-expense-tracker-606a9.firebasestorage.app",
+            messagingSenderId: "761915837035",
+            appId: "1:761915837035:web:e7395bc28a36d819e73f2e"
+        };
+
+        // Initialize Firebase
+        let db, auth, user = null;
+        let isOnlineMode = true;
+        let expenses = [];
+        let selectedExpenses = new Set();
+
+        // Initialize Firebase services
+        function initializeFirebase() {
+            try {
+                if (typeof firebase === 'undefined') {
+                    console.error('Firebase SDK not loaded');
+                    updateFirebaseStatus('disconnected', '❌ Firebase SDK not loaded');
+                    expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+                    displayExpenses();
+                    updateTotal();
+                    return;
+                }
+                
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                
+                // Enable offline persistence with error handling
+                db.enablePersistence().catch((err) => {
+                    if (err.code == 'failed-precondition') {
+                        console.log("Multiple tabs open, persistence can only be enabled in one tab at a time.");
+                    } else if (err.code == 'unimplemented') {
+                        console.log("The current browser does not support all of the features required to enable persistence");
+                    }
+                });
+                
+                updateFirebaseStatus('connected', '✅ Connected to Firebase');
+                setupAuthStateListener();
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                updateFirebaseStatus('disconnected', '❌ Firebase connection failed: ' + error.message);
+                // Fall back to local storage
+                expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+                displayExpenses();
+                updateTotal();
+                populatePropertyFilter();
+            }
+        }
+
+        // Update Firebase connection status
+        function updateFirebaseStatus(status, message) {
+            const statusDiv = document.getElementById('firebase-status');
+            statusDiv.className = `firebase-status ${status}`;
+            statusDiv.textContent = message;
+            
+            // Hide status after 3 seconds if connected
+            if (status === 'connected') {
+                setTimeout(() => {
+                    statusDiv.style.opacity = '0.7';
+                }, 3000);
+            }
+        }
+
+        // Authentication state listener
+        function setupAuthStateListener() {
+            auth.onAuthStateChanged((authUser) => {
+                user = authUser;
+                if (user) {
+                    showUserInfo();
+                    loadExpensesFromFirebase();
+                } else {
+                    showAuthSection();
+                    // Fall back to local storage when not authenticated
+                    expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+                    displayExpenses();
+                    updateTotal();
+                }
+            });
+        }
+
+        // Show authentication section
+        function showAuthSection() {
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('user-info').style.display = 'none';
+            document.getElementById('sync-controls').style.display = 'none';
+        }
+
+        // Show user info section
+        function showUserInfo() {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('user-info').style.display = 'flex';
+            document.getElementById('sync-controls').style.display = 'flex';
+            document.getElementById('user-email').textContent = user.email;
+        }
+
+        // Sign up new user
+        async function signUp(email, password) {
+            try {
+                updateFirebaseStatus('loading', '🔄 Creating account...');
+                await auth.createUserWithEmailAndPassword(email, password);
+                alert('✅ Account created successfully!');
+                // Migrate local data to Firebase
+                await migrateLocalDataToFirebase();
+            } catch (error) {
+                alert('❌ Sign up failed: ' + error.message);
+                updateFirebaseStatus('disconnected', '❌ Sign up failed');
+            }
+        }
+
+        // Sign in existing user
+        async function signIn(email, password) {
+            try {
+                updateFirebaseStatus('loading', '🔄 Signing in...');
+                await auth.signInWithEmailAndPassword(email, password);
+                alert('✅ Signed in successfully!');
+            } catch (error) {
+                alert('❌ Sign in failed: ' + error.message);
+                updateFirebaseStatus('disconnected', '❌ Sign in failed');
+            }
+        }
+
+        // Sign out user
+        async function signOut() {
+            try {
+                await auth.signOut();
+                alert('👋 Signed out successfully!');
+                expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+                displayExpenses();
+                updateTotal();
+            } catch (error) {
+                alert('❌ Sign out failed: ' + error.message);
+            }
+        }
+
+        // Migrate local data to Firebase
+        async function migrateLocalDataToFirebase() {
+            const localExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+            if (localExpenses.length > 0) {
+                for (const expense of localExpenses) {
+                    await saveExpenseToFirebase(expense);
+                }
+                localStorage.removeItem('expenses'); // Clear local storage after migration
+                alert(`📤 Migrated ${localExpenses.length} expenses to cloud!`);
+            }
+        }
+
+        // Load expenses from Firebase
+        async function loadExpensesFromFirebase() {
+            if (!user) return;
+            
+            try {
+                updateFirebaseStatus('loading', '🔄 Loading expenses...');
+                const snapshot = await db.collection('users').doc(user.uid).collection('expenses').get();
+                expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateFirebaseStatus('connected', '✅ Expenses loaded');
+                displayExpenses();
+                updateTotal();
+                populatePropertyFilter();
+            } catch (error) {
+                console.error("Error loading expenses:", error);
+                updateFirebaseStatus('disconnected', '❌ Load failed');
+            }
+        }
+
+        // Save expense to Firebase
+        async function saveExpenseToFirebase(expense) {
+            if (!user) {
+                // Save to local storage if not authenticated
+                expenses.push(expense);
+                localStorage.setItem('expenses', JSON.stringify(expenses));
+                return;
+            }
+            
+            try {
+                const docRef = await db.collection('users').doc(user.uid).collection('expenses').add(expense);
+                expense.id = docRef.id;
+                expenses.push(expense);
+                updateFirebaseStatus('connected', '✅ Expense saved');
+            } catch (error) {
+                console.error("Error saving expense:", error);
+                updateFirebaseStatus('disconnected', '❌ Save failed');
+                // Fallback to local storage
+                expenses.push(expense);
+                localStorage.setItem('expenses', JSON.stringify(expenses));
+            }
+        }
+
+        // Update expense in Firebase
+        async function updateExpenseInFirebase(expense) {
+            if (!user) {
+                // Update in local storage if not authenticated
+                const index = expenses.findIndex(e => e.id === expense.id);
+                if (index !== -1) {
+                    expenses[index] = expense;
+                    localStorage.setItem('expenses', JSON.stringify(expenses));
+                }
+                return;
+            }
+            
+            try {
+                await db.collection('users').doc(user.uid).collection('expenses').doc(expense.id).update(expense);
+                updateFirebaseStatus('connected', '✅ Expense updated');
+            } catch (error) {
+                console.error("Error updating expense:", error);
+                updateFirebaseStatus('disconnected', '❌ Update failed');
+            }
+        }
+
+        // Delete expense from Firebase
+        async function deleteExpenseFromFirebase(expenseId) {
+            if (!user) {
+                // Delete from local storage if not authenticated
+                expenses = expenses.filter(expense => expense.id !== expenseId);
+                localStorage.setItem('expenses', JSON.stringify(expenses));
+                return;
+            }
+            
+            try {
+                await db.collection('users').doc(user.uid).collection('expenses').doc(expenseId).delete();
+                expenses = expenses.filter(expense => expense.id !== expenseId);
+                updateFirebaseStatus('connected', '✅ Expense deleted');
+            } catch (error) {
+                console.error("Error deleting expense:", error);
+                updateFirebaseStatus('disconnected', '❌ Delete failed');
+            }
+        }
+
+        // Force sync with Firebase
+        async function forceSync() {
+            if (!user) {
+                alert('Please sign in to sync with cloud');
+                return;
+            }
+            
+            try {
+                updateFirebaseStatus('loading', '🔄 Syncing...');
+                await loadExpensesFromFirebase();
+                alert('🔄 Sync completed!');
+            } catch (error) {
+                alert('❌ Sync failed: ' + error.message);
+            }
+        }
+
+        // Toggle offline mode
+        function toggleOfflineMode() {
+            isOnlineMode = !isOnlineMode;
+            const btn = document.getElementById('offline-mode-btn');
+            if (isOnlineMode) {
+                btn.textContent = '📱 Work Offline';
+                btn.className = 'btn btn-small btn-warning';
+                updateFirebaseStatus('connected', '✅ Online mode');
+            } else {
+                btn.textContent = '🌐 Work Online';
+                btn.className = 'btn btn-small';
+                updateFirebaseStatus('disconnected', '📱 Offline mode');
+            }
+        }
+
+        // ========== REST OF THE APPLICATION CODE ==========
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Firebase first
+            initializeFirebase();
+            
+            // Set today's date as default
+            document.getElementById('date').valueAsDate = new Date();
+            
+            // Form submission
+            document.getElementById('expense-form').addEventListener('submit', handleFormSubmit);
+            
+            // Authentication event listeners
+            document.getElementById('sign-in-btn').addEventListener('click', () => {
+                const email = document.getElementById('auth-email').value;
+                const password = document.getElementById('auth-password').value;
+                if (email && password) {
+                    signIn(email, password);
+                } else {
+                    alert('Please enter email and password');
+                }
+            });
+            
+            document.getElementById('sign-up-btn').addEventListener('click', () => {
+                const email = document.getElementById('auth-email').value;
+                const password = document.getElementById('auth-password').value;
+                if (email && password) {
+                    if (password.length < 6) {
+                        alert('Password must be at least 6 characters');
+                        return;
+                    }
+                    signUp(email, password);
+                } else {
+                    alert('Please enter email and password');
+                }
+            });
+            
+            document.getElementById('sign-out-btn').addEventListener('click', signOut);
+            document.getElementById('force-sync-btn').addEventListener('click', forceSync);
+            document.getElementById('offline-mode-btn').addEventListener('click', toggleOfflineMode);
+            
+            // Property selection
+            document.getElementById('property').addEventListener('change', function() {
+                const otherInput = document.getElementById('property-other');
+                if (this.value === 'Other') {
+                    otherInput.style.display = 'block';
+                    otherInput.required = true;
+                } else {
+                    otherInput.style.display = 'none';
+                    otherInput.required = false;
+                    otherInput.value = '';
+                }
+            });
+            
+            // Receipt preview
+            document.getElementById('receipt').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                const preview = document.getElementById('receipt-preview');
+                
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.innerHTML = `<img src="${e.target.result}" alt="Receipt preview">`;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    preview.innerHTML = '';
+                }
+            });
+            
+            // Filter controls
+            document.getElementById('filter-property').addEventListener('change', filterExpenses);
+            document.getElementById('filter-status').addEventListener('change', filterExpenses);
+            document.getElementById('sort-by').addEventListener('change', filterExpenses);
+            
+            // Selection controls
+            document.getElementById('select-all-btn').addEventListener('click', selectAllExpenses);
+            document.getElementById('clear-selection-btn').addEventListener('click', clearSelection);
+            document.getElementById('export-group-btn').addEventListener('click', exportGroupPDF);
+            
+            // Backup & Restore
+            document.getElementById('backup-btn').addEventListener('click', downloadBackup);
+            document.getElementById('restore-btn').addEventListener('click', () => {
+                document.getElementById('restore-input').click();
+            });
+            document.getElementById('restore-input').addEventListener('change', restoreFromFile);
+            
+            // Modal functionality
+            const modal = document.getElementById('receipt-modal');
+            const closeModal = document.querySelector('.close');
+            
+            closeModal.onclick = function() {
+                modal.style.display = 'none';
+            };
+            
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        });
+
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Refresh expenses display when viewing expenses tab
+            if (tabName === 'view-expenses') {
+                displayExpenses();
+                updateTotal();
+                populatePropertyFilter();
+            }
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const receiptFile = formData.get('receipt');
+            
+            // Get property value
+            let propertyValue = formData.get('property');
+            if (propertyValue === 'Other') {
+                propertyValue = formData.get('property-other');
+            }
+            
+            // Create expense object
+            const expense = {
+                id: Date.now(),
+                item: formData.get('item'),
+                reason: formData.get('reason'),
+                property: propertyValue,
+                date: formData.get('date'),
+                total: parseFloat(formData.get('total')),
+                receiptImage: null,
+                paid: false // Default to unpaid
+            };
+            
+            // Handle receipt image
+            if (receiptFile && receiptFile.size > 0) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    expense.receiptImage = e.target.result;
+                    saveExpense(expense);
+                };
+                reader.readAsDataURL(receiptFile);
+            } else {
+                saveExpense(expense);
+            }
+        }
+
+        function saveExpense(expense) {
+            expenses.push(expense);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            
+            // Reset form
+            document.getElementById('expense-form').reset();
+            document.getElementById('receipt-preview').innerHTML = '';
+            document.getElementById('date').valueAsDate = new Date();
+            
+            // Show success message
+            alert('💾 Expense saved successfully!');
+            
+            // Switch to view expenses tab
+            const viewTab = document.querySelector('.tab:nth-child(2)');
+            viewTab.click();
+        }
+
+        function populatePropertyFilter() {
+            const filterSelect = document.getElementById('filter-property');
+            const properties = [...new Set(expenses.map(e => e.property))];
+            
+            filterSelect.innerHTML = '<option value="">All Properties</option>';
+            properties.forEach(property => {
+                if (property) {
+                    filterSelect.innerHTML += `<option value="${property}">${property}</option>`;
+                }
+            });
+        }
+
+        function filterExpenses() {
+            const propertyFilter = document.getElementById('filter-property').value;
+            const statusFilter = document.getElementById('filter-status').value;
+            const sortBy = document.getElementById('sort-by').value;
+            
+            let filteredExpenses = [...expenses];
+            
+            // Apply filters
+            if (propertyFilter) {
+                filteredExpenses = filteredExpenses.filter(e => e.property === propertyFilter);
+            }
+            
+            if (statusFilter) {
+                filteredExpenses = filteredExpenses.filter(e => 
+                    statusFilter === 'paid' ? e.paid : !e.paid
+                );
+            }
+            
+            // Apply sorting
+            filteredExpenses.sort((a, b) => {
+                switch (sortBy) {
+                    case 'date-desc':
+                        return new Date(b.date) - new Date(a.date);
+                    case 'date-asc':
+                        return new Date(a.date) - new Date(b.date);
+                    case 'amount-desc':
+                        return b.total - a.total;
+                    case 'amount-asc':
+                        return a.total - b.total;
+                    case 'item':
+                        return a.item.localeCompare(b.item);
+                    default:
+                        return new Date(b.date) - new Date(a.date);
+                }
+            });
+            
+            displayFilteredExpenses(filteredExpenses);
+        }
+
+        function displayFilteredExpenses(expensesToShow) {
+            const container = document.getElementById('expenses-container');
+            
+            if (expensesToShow.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No expenses match your filters</h3>
+                        <p>Try adjusting your filter settings!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = expensesToShow.map(expense => `
+                <div class="expense-card ${selectedExpenses.has(expense.id) ? 'selected' : ''}" data-id="${expense.id}">
+                    <input type="checkbox" class="expense-checkbox" 
+                           ${selectedExpenses.has(expense.id) ? 'checked' : ''} 
+                           onchange="toggleExpenseSelection(${expense.id})">
+                    <div class="expense-header">
+                        <div class="expense-title">${expense.item}</div>
+                        <div class="expense-amount">£${expense.total.toFixed(2)}</div>
+                    </div>
+                    <div class="expense-status">
+                        <span class="status-toggle ${expense.paid ? 'status-paid' : 'status-unpaid'}" 
+                              onclick="togglePaidStatus(${expense.id})">
+                            ${expense.paid ? '✅ Paid' : '⏳ Unpaid'}
+                        </span>
+                    </div>
+                    <div class="expense-details">
+                        <p><strong>📅 Date:</strong> ${formatDate(expense.date)}</p>
+                        <p><strong>🏠 Property:</strong> ${expense.property}</p>
+                        <p><strong>📝 Reason:</strong> ${expense.reason}</p>
+                        ${expense.receiptImage ? `
+                            <p><strong>🧾 Receipt:</strong> 
+                                <img src="${expense.receiptImage}" 
+                                     class="receipt-thumbnail" 
+                                     onclick="showReceiptModal('${expense.receiptImage}')"
+                                     alt="Receipt thumbnail">
+                            </p>
+                        ` : ''}
+                    </div>
+                    <div class="expense-actions">
+                        <button class="btn btn-small" onclick="exportToPDF(${expense.id})">📄 Export PDF</button>
+                        <button class="btn btn-small btn-delete" onclick="deleteExpense(${expense.id})">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayExpenses() {
+            filterExpenses(); // Use the filter function to display all expenses
+        }
+
+        function updateTotal() {
+            const total = expenses.reduce((sum, expense) => sum + expense.total, 0);
+            const paidTotal = expenses.filter(e => e.paid).reduce((sum, expense) => sum + expense.total, 0);
+            const unpaidTotal = total - paidTotal;
+            
+            document.querySelector('#total-summary .amount').textContent = `£${total.toFixed(2)}`;
+            document.getElementById('paid-total').textContent = `£${paidTotal.toFixed(2)}`;
+            document.getElementById('unpaid-total').textContent = `£${unpaidTotal.toFixed(2)}`;
+        }
+
+        function togglePaidStatus(id) {
+            const expense = expenses.find(e => e.id === id);
+            if (expense) {
+                expense.paid = !expense.paid;
+                updateExpenseInFirebase(expense);
+                displayExpenses();
+                updateTotal();
+            }
+        }
+
+        function toggleExpenseSelection(id) {
+            if (selectedExpenses.has(id)) {
+                selectedExpenses.delete(id);
+            } else {
+                selectedExpenses.add(id);
+            }
+            
+            updateSelectionUI();
+        }
+
+        function selectAllExpenses() {
+            const visibleExpenses = Array.from(document.querySelectorAll('.expense-card')).map(card => 
+                parseInt(card.dataset.id)
+            );
+            visibleExpenses.forEach(id => selectedExpenses.add(id));
+            updateSelectionUI();
+            displayExpenses();
+        }
+
+        function clearSelection() {
+            selectedExpenses.clear();
+            updateSelectionUI();
+            displayExpenses();
+        }
+
+        function updateSelectionUI() {
+            const selectionInfo = document.getElementById('selection-info');
+            const selectionCount = document.getElementById('selection-count');
+            
+            if (selectedExpenses.size > 0) {
+                selectionInfo.classList.add('show');
+                selectionCount.textContent = `${selectedExpenses.size} expense${selectedExpenses.size > 1 ? 's' : ''} selected`;
+            } else {
+                selectionInfo.classList.remove('show');
+            }
+        }
+
+        function exportGroupPDF() {
+            if (selectedExpenses.size === 0) {
+                alert('Please select expenses to export');
+                return;
+            }
+            
+            const selectedExpensesData = expenses.filter(e => selectedExpenses.has(e.id));
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFontSize(24);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(102, 126, 234);
+            doc.text('EXPENSE REPORT', 20, 30);
+            
+            // Summary
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            
+            const totalAmount = selectedExpensesData.reduce((sum, e) => sum + e.total, 0);
+            const paidAmount = selectedExpensesData.filter(e => e.paid).reduce((sum, e) => sum + e.total, 0);
+            const unpaidAmount = totalAmount - paidAmount;
+            
+            let yPos = 50;
+            doc.setFont(undefined, 'bold');
+            doc.text(`Total Expenses: £${totalAmount.toFixed(2)}`, 20, yPos);
+            yPos += 8;
+            doc.text(`Paid: £${paidAmount.toFixed(2)} | Unpaid: £${unpaidAmount.toFixed(2)}`, 20, yPos);
+            yPos += 8;
+            doc.text(`Number of Items: ${selectedExpensesData.length}`, 20, yPos);
+            yPos += 15;
+            
+            // Draw line
+            doc.line(20, yPos, 190, yPos);
+            yPos += 15;
+            
+            // Individual expenses
+            selectedExpensesData.forEach((expense, index) => {
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 30;
+                }
+                
+                doc.setFont(undefined, 'bold');
+                doc.setFontSize(14);
+                doc.text(`${index + 1}. ${expense.item}`, 20, yPos);
+                yPos += 10;
+                
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(10);
+                doc.text(`Date: ${formatDate(expense.date)}`, 25, yPos);
+                yPos += 6;
+                doc.text(`Property: ${expense.property}`, 25, yPos);
+                yPos += 6;
+                doc.text(`Amount: £${expense.total.toFixed(2)} (${expense.paid ? 'Paid' : 'Unpaid'})`, 25, yPos);
+                yPos += 6;
+                
+                doc.text('Reason:', 25, yPos);
+                yPos += 6;
+                const splitReason = doc.splitTextToSize(expense.reason, 160);
+                doc.text(splitReason, 30, yPos);
+                yPos += splitReason.length * 5 + 10;
+                
+                // Add small receipt image if available
+                if (expense.receiptImage && yPos < 230) {
+                    try {
+                        doc.text('Receipt:', 25, yPos);
+                        yPos += 6;
+                        doc.addImage(expense.receiptImage, 'JPEG', 25, yPos, 40, 30);
+                        yPos += 35;
+                    } catch (error) {
+                        doc.text('Receipt image attached', 25, yPos);
+                        yPos += 8;
+                    }
+                }
+                
+                // Separator line
+                if (index < selectedExpensesData.length - 1) {
+                    doc.line(20, yPos, 190, yPos);
+                    yPos += 10;
+                }
+            });
+            
+            // Save the PDF
+            const fileName = `expense_report_${selectedExpensesData.length}_items_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+            
+            // Clear selection after export
+            clearSelection();
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+
+        function showReceiptModal(imageSrc) {
+            const modal = document.getElementById('receipt-modal');
+            const modalImage = document.getElementById('modal-image');
+            modalImage.src = imageSrc;
+            modal.style.display = 'block';
+        }
+
+        function deleteExpense(id) {
+            if (confirm('Are you sure you want to delete this expense?')) {
+                deleteExpenseFromFirebase(id);
+                selectedExpenses.delete(id);
+                displayExpenses();
+                updateTotal();
+                updateSelectionUI();
+                populatePropertyFilter();
+            }
+        }
+
+        function exportToPDF(id) {
+            const expense = expenses.find(e => e.id === id);
+            if (!expense) return;
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFontSize(24);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(102, 126, 234);
+            doc.text('EXPENSE REPORT', 20, 30);
+            
+            // Expense details with bold headers
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            
+            let yPos = 60;
+            const lineHeight = 12;
+            
+            // Item
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('Item:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(expense.item, 50, yPos);
+            yPos += lineHeight;
+            
+            // Date
+            doc.setFont(undefined, 'bold');
+            doc.text('Date:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(formatDate(expense.date), 50, yPos);
+            yPos += lineHeight;
+            
+            // Property
+            doc.setFont(undefined, 'bold');
+            doc.text('Property:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            const splitProperty = doc.splitTextToSize(expense.property, 140);
+            doc.text(splitProperty, 50, yPos);
+            yPos += splitProperty.length * 6 + 6;
+            
+            // Amount
+            doc.setFont(undefined, 'bold');
+            doc.text('Amount:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(`£${expense.total.toFixed(2)} (${expense.paid ? 'Paid' : 'Unpaid'})`, 50, yPos);
+            yPos += lineHeight * 1.5;
+            
+            // Reason for Purchase
+            doc.setFont(undefined, 'bold');
+            doc.text('Reason for Purchase:', 20, yPos);
+            yPos += lineHeight;
+            
+            // Handle long reason text
+            doc.setFont(undefined, 'normal');
+            const splitReason = doc.splitTextToSize(expense.reason, 170);
+            doc.text(splitReason, 20, yPos);
+            yPos += splitReason.length * 6 + lineHeight;
+            
+            // Add receipt image if available
+            if (expense.receiptImage) {
+                try {
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Receipt:', 20, yPos);
+                    yPos += lineHeight;
+                    
+                    // Add image (scaled to fit)
+                    const imgWidth = 120;
+                    const imgHeight = 90;
+                    doc.addImage(expense.receiptImage, 'JPEG', 20, yPos, imgWidth, imgHeight);
+                } catch (error) {
+                    console.error('Error adding image to PDF:', error);
+                    doc.setFont(undefined, 'normal');
+                    doc.text('Receipt image could not be included', 20, yPos);
+                }
+            }
+            
+            // Save the PDF
+            const fileName = `expense_${expense.item.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${expense.date}.pdf`;
+            doc.save(fileName);
+        }
+
+        function downloadBackup() {
+            const dataStr = JSON.stringify(expenses, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `expense_backup_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            alert('📥 Backup downloaded successfully!');
+        }
+
+        function restoreFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (confirm('⚠️ This will replace all your current expenses. Are you sure you want to continue?')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const backupData = JSON.parse(e.target.result);
+                        
+                        // Validate the backup data
+                        if (Array.isArray(backupData)) {
+                            expenses = backupData;
+                            localStorage.setItem('expenses', JSON.stringify(expenses));
+                            selectedExpenses.clear();
+                            
+                            alert('🔄 Data restored successfully!');
+                            
+                            // Switch to view expenses tab and refresh
+                            const viewTab = document.querySelector('.tab:nth-child(2)');
+                            viewTab.click();
+                            displayExpenses();
+                            updateTotal();
+                            populatePropertyFilter();
+                        } else {
+                            alert('❌ Invalid backup file format');
+                        }
+                    } catch (error) {
+                        alert('❌ Error reading backup file: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+            
+            // Reset the input
+            event.target.value = '';
+        }
+    </script>
+</body>
+</html>
